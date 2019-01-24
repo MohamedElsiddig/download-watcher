@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+#
+# This script is used to manage the ~/Download folder of a user. It will be the
+# handler of inotify notifications and will move a downloaded file into
+# subfolders under the ~/Download folder named after the file's extension.
+
+
+set -euo pipefail
+
+cd Downloads || exit 1
+
+declare -ri IN_MOVED_TO=128
+declare -ri IN_CREATE=256
+
+function move_per_filetype() {
+  local file="$1"
+
+  local file_extension
+  file_extension="${file##*.}"
+
+  local user="$(stat -c %U .)"
+
+  if [[ "${file_extension}" == '' ]]; then
+    return
+  fi
+
+  mkdir -p "${file_extension}"
+
+  case "${file_extension}" in
+    'pdf')
+      sudo -u "$user" mv "$file" "pdf/"
+      ;;
+    *)
+      return
+      ;;
+  esac
+}
+
+
+function download_watcher() {
+  local file
+  local event
+
+  event="${WENDY_EVENT-$1}"
+  file="${WENDY_INODE-$2}"
+
+  case "$event" in
+    256)
+      move_per_filetype "$file"
+      ;;
+    128)
+      WENDY_EVENT=256
+      at now + 1 minutes <<< "${BASH_SOURCE[0]} $event $file"
+      ;;
+  esac
+}
+
+
+download_watcher "$@"
+
