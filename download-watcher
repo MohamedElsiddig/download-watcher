@@ -4,13 +4,13 @@
 # handler of inotify notifications and will move a downloaded file into
 # subfolders under the ~/Download folder named after the file's extension.
 
-
+folders=("Documents" "Music" "Compressed" "Programs" "Scripts" "Pictures" "Video" "Torrent Files")
 set -euo pipefail
+#set -x
+cd ~/Downloads || exit 1
 
-cd Downloads || exit 1
-
-declare -ri IN_MOVED_TO=128
-declare -ri IN_CREATE=256
+declare -ri MOVED_TO=128
+declare -ri CREATE=256
 
 function move_per_filetype() {
   local file="$1"
@@ -23,12 +23,40 @@ function move_per_filetype() {
   if [[ "${file_extension}" == '' ]]; then
     return
   fi
-
-  mkdir -p "${file_extension}"
+for default_dirs in "${folders[@]}"
+	do
+		if [[ ! -e "${default_dirs}" ]]
+			then
+				mkdir -p "${default_dirs}" > /dev/null 2>&1
+			else
+				:
+		fi
+	done
 
   case "${file_extension}" in
-    'pdf')
-      sudo -u "$user" mv "$file" "pdf/"
+     'odt'| 'pptx' | 'ppt' | 'odf' | 'doc' | 'docx' | 'pdf' | 'txt')
+      sudo -u "$user" mv -f "$file" "Documents/"
+      ;;
+      'mp4'| 'mkv')
+      sudo -u "$user" mv -f "$file" "Video/"
+      ;;
+      'zip'|'rar'|'bz2' | 'gz' | 'tar' | 'zst' | 'tbz2' | 'tgz' | 'Z' | '7z' | 'xz' | 'ex' | 'tar.bz2' | 'tar.gz' | 'tar.xz' | 'iso'| 'apk')
+      sudo -u "$user" mv -f "$file" "Compressed/"
+      ;;
+     'deb'| 'rpm' | 'exe' | 'AppImage' | 'dmg')
+      sudo -u "$user" mv -f "$file" "Programs/"
+      ;;
+      'mp3'| 'mpa' | 'wav')
+      sudo -u "$user" mv -f "$file" "Music/"
+      ;;
+      'hs'| 'sh'| 'pl'| 'py'| 'rb'| 'jl'| 'r'| 'js'| 'bash')
+      sudo -u "$user" mv -f "$file" "Scripts/"
+      ;;
+      'png'| 'jpg'| 'jpeg' | 'gif' | 'tif' | 'tiff' | 'bpm' | 'svg')
+      sudo -u "$user" mv -f "$file" "Pictures/"
+      ;;
+      'torrent')
+      sudo -u "$user" mv -f "$file" "Torrent Files/"
       ;;
     *)
       return
@@ -45,10 +73,10 @@ function download_watcher() {
   file="${WENDY_INODE-$2}"
 
   case "$event" in
-    256)
+    256|CREATE)
       move_per_filetype "$file"
       ;;
-    128)
+    128|MOVED_TO)
       WENDY_EVENT=256
       at now + 1 minutes <<< "${BASH_SOURCE[0]} $event $file"
       ;;
