@@ -59,7 +59,9 @@ for default_dirs in "${folders[@]}"
       sudo -u "$user" mv -f "$file" "Torrent Files/"
       ;;
     *)
-	sudo -u "$user" mv -f "$file" "Others/"    
+    if [ ! -d "$file" ]; then
+    sudo -u "$user" mv -f "$file" "Others/"
+    fi
       return
       ;;
   esac
